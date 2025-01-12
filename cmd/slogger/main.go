@@ -1,13 +1,26 @@
 package main
 
 import (
+	"fmt"
+	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
+	"slices"
 	"slogger/internal/commands"
+	"slogger/internal/config"
 	"slogger/pkg/foundation/app"
+	"strings"
 )
 
 var args = os.Args
+
+func init() {
+	err := godotenv.Load()
+
+	if err != nil {
+		panic(err)
+	}
+}
 
 func main() {
 	var commandName string
@@ -31,8 +44,37 @@ func main() {
 
 func initAppConfig() *app.Config {
 	return app.NewConfig(
-		[]slog.Level{},
-		"storage/logs",
-		3,
+		getLogLevels(),
+		config.GetConfig().GetLogDir(),
+		config.GetConfig().GetLogKeepDays(),
 	)
+}
+
+func getLogLevels() []slog.Level {
+	logLevels := strings.Split(config.GetConfig().GetLogLevels(), ",")
+
+	var slogLevels []slog.Level
+
+	if slices.Index(logLevels, "any") == -1 {
+		for _, logLevel := range logLevels {
+			if logLevel == "" {
+				continue
+			}
+
+			switch logLevel {
+			case "debug":
+				slogLevels = append(slogLevels, slog.LevelDebug)
+			case "info":
+				slogLevels = append(slogLevels, slog.LevelInfo)
+			case "warn":
+				slogLevels = append(slogLevels, slog.LevelWarn)
+			case "error":
+				slogLevels = append(slogLevels, slog.LevelError)
+			default:
+				panic(fmt.Errorf("unknown log level: %s", logLevel))
+			}
+		}
+	}
+
+	return slogLevels
 }
